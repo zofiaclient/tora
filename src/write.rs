@@ -8,20 +8,6 @@ pub trait ToraWrite {
     where
         S: SerializeIo;
 
-    /// Write the given string in UTF-8.
-    ///
-    /// If the given string does not end in a NUL `0x00` byte, one will be appended.
-    fn write_utf8<S>(&mut self, s: S) -> io::Result<()>
-    where
-        S: AsRef<str>;
-
-    /// Write a dynamic amount of bytes.
-    ///
-    /// Opposite of [ToraRead::read_dyn_bytes](crate::read::ToraRead::read_dyn_bytes).
-    fn write_dyn_bytes<B>(&mut self, b: B) -> io::Result<()>
-    where
-        B: AsRef<[u8]>;
-
     /// Write a dynamic amount of objects.
     ///
     /// Opposite of [ToraRead::read_dyn](crate::read::ToraRead::read_dyn).
@@ -40,28 +26,6 @@ where
         S: SerializeIo,
     {
         s.serialize(self)
-    }
-
-    fn write_utf8<S>(&mut self, msg: S) -> io::Result<()>
-    where
-        S: AsRef<str>,
-    {
-        let s = msg.as_ref();
-        self.write_all(s.as_bytes())?;
-
-        if !s.ends_with(0u8 as char) {
-            self.write_all(&[0])?;
-        }
-        Ok(())
-    }
-
-    fn write_dyn_bytes<B>(&mut self, b: B) -> io::Result<()>
-    where
-        B: AsRef<[u8]>,
-    {
-        let b = b.as_ref();
-        self.writes(&(b.len() as u32))?;
-        self.write_all(b)
     }
 
     fn write_dyn<T, D>(&mut self, d: D) -> io::Result<()>
@@ -142,22 +106,28 @@ impl SerializeIo for bool {
 }
 
 impl SerializeIo for String {
-    /// Equivalent to [ToraWrite::write_utf8].
     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
-        w.write_utf8(self)
+        self.as_str().serialize(w)
     }
 }
 
 impl<'a> SerializeIo for &'a str {
-    /// Equivalent to [ToraWrite::write_utf8].
+    /// Write the given string in UTF-8.
+    ///
+    /// If the given string does not end in a NUL `0x00` byte, one will be appended.
     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
-        w.write_utf8(self)
+        w.write_all(self.as_bytes())?;
+
+        if !self.ends_with(0u8 as char) {
+            w.write_all(&[0])?;
+        }
+        Ok(())
     }
 }
 

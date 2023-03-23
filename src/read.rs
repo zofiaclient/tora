@@ -62,12 +62,25 @@ impl FromReader for char {
 }
 
 impl FromReader for String {
-    /// Equivalent to [ToraRead::read_utf8].
+    /// Read a UTF-8 string from this reader.
+    ///
+    /// Reads until a NUL `0x00` byte is encountered. Does not include the terminating byte.
+    ///
+    /// Returns [ErrorKind::InvalidData] if the received message is not valid UTF-8.
     fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
-        r.read_utf8()
+        let mut buf = Vec::new();
+
+        loop {
+            let b = r.reads::<u8>()?;
+            if b == 0 {
+                break String::from_utf8(buf)
+                    .map_err(|_| io::Error::new(ErrorKind::InvalidData, "Invalid UTF-8"));
+            }
+            buf.push(b);
+        }
     }
 }
 
@@ -119,13 +132,6 @@ pub trait ToraRead {
     where
         T: FromReader;
 
-    /// Read a UTF-8 string from this reader.
-    ///
-    /// Reads until a NUL `0x00` byte is encountered. Does not include the terminating byte.
-    ///
-    /// Returns [ErrorKind::InvalidData] if the received message is not valid UTF-8.
-    fn read_utf8(&mut self) -> io::Result<String>;
-
     /// Read a dynamic amount of objects.
     ///
     /// Reads a [u32], then reads N amount of [T] into a Vec and returns it.
@@ -144,19 +150,6 @@ where
         T: FromReader,
     {
         T::from_reader(self)
-    }
-
-    fn read_utf8(&mut self) -> io::Result<String> {
-        let mut buf = Vec::new();
-
-        loop {
-            let b = self.reads::<u8>()?;
-            if b == 0 {
-                break String::from_utf8(buf)
-                    .map_err(|_| io::Error::new(ErrorKind::InvalidData, "Invalid UTF-8"));
-            }
-            buf.push(b);
-        }
     }
 
     fn read_dyn<T>(&mut self) -> io::Result<Vec<T>>
