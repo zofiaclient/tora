@@ -1,0 +1,21 @@
+[package]
+name = "tora"
+license-file = "LICENSE"
+description = "A lite, byte-based serialization and deserialization library."
+repository = "https://github.com/imajindevon/tora"
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+categories = ["data-structures", "encoding", "filesystem", "network-programming", "parsing"]
+keywords = ["bytes", "network", "packet", "serde", "bson"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tora_derive = { version = "0.1.0", optional = true }
+
+[features]
+read_impl = []
+derive = ["tora_derive"]
+
+default = ["read_impl", "tora_derive"]
