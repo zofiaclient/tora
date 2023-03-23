@@ -1,16 +1,23 @@
-use std::collections::HashMap;
-use std::{io, thread};
-use std::net::{TcpListener, TcpStream};
-use std::sync::{Arc, Mutex};
-use tora::write::ToraWrite;
+use std::io;
+use std::net::TcpListener;
 
-static USERS: Arc<Mutex<HashMap<String, TcpStream>>> = Arc::new(Mutex::default());
+use tora::write::ToraWrite;
+use tora::SerializeIo;
+
+#[derive(SerializeIo)]
+struct Message {
+    sender: String,
+    content: String,
+}
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:12345")?;
-    
-    thread::spawn(move || {
-        let (conn, addr) = listener.accept()?;
-        
-    })
+    let (mut conn, _) = listener.accept()?;
+
+    let message = Message {
+        sender: "John".to_string(),
+        content: "Hello, world!".to_string(),
+    };
+
+    conn.writes(&message)
 }
