@@ -11,14 +11,16 @@
 
 ### Network data transfer
 
+#### Host
+
 ```rust
 use std::io;
 use std::net::TcpListener;
 
 use tora::write::ToraWrite;
-use tora::SerializeIo;
+use tora::WriteStruct;
 
-#[derive(SerializeIo)] // tora-provided
+#[derive(WriteStruct)]
 struct Message {
     sender: String,
     content: String,
@@ -32,43 +34,29 @@ fn main() -> io::Result<()> {
         sender: "John".to_string(),
         content: "Hello, world!".to_string(),
     };
-
-    conn.writes(&message) // tora-provided
+    conn.writes(&message)
 }
 ```
 
-### Data storage
+#### Client
 
 ```rust
 use std::io;
+use std::net::TcpStream;
 
-use tora::{FromReader, SerializeIo};
+use tora::read::ToraRead;
+use tora::ReadStruct;
 
-#[derive(FromReader, SerializeIo, Debug)]
-struct Employee {
-    name: String,
-    age: i32,
+#[derive(ReadStruct)]
+struct Message {
+    sender: String,
+    content: String,
 }
 
 fn main() -> io::Result<()> {
-    // 34 bytes.
-    tora::write_to_file(
-        "EmployeeList.tora",
-        &[
-            Employee {
-                name: "John Doe".to_string(),
-                age: 21,
-            },
-            Employee {
-                name: "Walter White".to_string(),
-                age: 52,
-            },
-        ]
-        .as_slice(),
-    )?;
-
-    let employees: Vec<Employee> = tora::read_from_file("EmployeeList.tora")?;
-    println!("{:#?}", employees);
+    let mut stream = TcpStream::connect("127.0.0.1:12345")?;
+    let Message { sender, content } = stream.reads()?;
+    println!("{}: {}", sender, content);
     Ok(())
 }
 ```

@@ -5,7 +5,7 @@ macro_rules! from_reader_impl {
     ($($t:ty),*) => {
         $(
         impl FromReader for $t {
-            fn from_reader<R>(r: &mut R) -> io::Result<Self>
+            fn from_reader<R>(mut r: R) -> io::Result<Self>
             where
                 R: Read,
             {
@@ -25,7 +25,7 @@ macro_rules! from_reader_impl {
 /// fn main() -> io::Result<()> {
 ///     let mut stream = TcpStream::connect("127.0.0.1:12345")?;
 ///
-///     let name = stream.read_utf8()?;
+///     let name = stream.reads::<String>()?;
 ///     let age = stream.reads::<u32>()?;
 ///
 ///     println!("{name} is {age} years old.");
@@ -33,7 +33,7 @@ macro_rules! from_reader_impl {
 /// }
 /// ```
 pub trait FromReader: Sized {
-    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    fn from_reader<R>(r: R) -> io::Result<Self>
     where
         R: Read;
 }
@@ -41,7 +41,7 @@ pub trait FromReader: Sized {
 from_reader_impl!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64, usize);
 
 impl FromReader for bool {
-    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -50,7 +50,7 @@ impl FromReader for bool {
 }
 
 impl FromReader for char {
-    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -67,7 +67,7 @@ impl FromReader for String {
     /// Reads until a NUL `0x00` byte is encountered. Does not include the terminating byte.
     ///
     /// Returns [ErrorKind::InvalidData] if the received message is not valid UTF-8.
-    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -89,11 +89,28 @@ where
     T: FromReader,
 {
     /// Equivalent to [ToraRead::read_dyn].
-    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
     {
         r.read_dyn()
+    }
+}
+
+impl<T, const N: usize> FromReader for [T; N]
+where
+    T: FromReader + Copy + Default,
+{
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        let mut arr = [T::default(); N];
+
+        for value in arr.iter_mut() {
+            *value = r.reads()?;
+        }
+        Ok(arr)
     }
 }
 

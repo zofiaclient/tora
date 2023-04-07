@@ -2,17 +2,20 @@
 name = "tora_derive"
 description = "The derive procedural macros for the tora crate."
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 categories = ["data-structures", "encoding", "filesystem", "network-programming", "parsing"]
 keywords = ["bytes", "network", "packet", "serde", "bson"]
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [lib]
 proc-macro = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dev-dependencies]
+tora = { path = ".." }
 
 [dependencies]
-syn = "2.0.4"
+syn = { version = "2.0.4", features = ["full"] }
 quote = "1.0.23"
 proc-macro2 = "1.0.52"

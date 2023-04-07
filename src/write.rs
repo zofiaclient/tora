@@ -1,6 +1,35 @@
 use std::io;
 use std::io::Write;
 
+macro_rules! serialize_io_num {
+    ($($t:ty),*) => {
+        $(
+        impl SerializeIo for $t {
+            fn serialize<W>(&self, mut w: W) -> io::Result<()>
+            where W: Write
+            {
+                w.write_all(&self.to_le_bytes())
+            }
+        })*
+    }
+}
+
+macro_rules! write_dyn_self_impl {
+    ($t:ty) => {
+        impl<T> SerializeIo for $t
+        where
+            T: SerializeIo,
+        {
+            fn serialize<W>(&self, mut w: W) -> io::Result<()>
+            where
+                W: Write,
+            {
+                w.write_dyn(self)
+            }
+        }
+    };
+}
+
 /// An extension to the standard [Write] trait.
 pub trait ToraWrite {
     /// Serialize and write the given data.
@@ -50,13 +79,13 @@ where
 /// use std::io::Write;
 ///
 /// pub trait SerializeIo {
-///     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+///     fn serialize<W>(&self, w: W) -> io::Result<()>
 ///     where
 ///         W: Write;
 /// }
 ///
 /// impl SerializeIo for i32 {
-///     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+///     fn serialize<W>(&self, mut w: W) -> io::Result<()>
 ///     where W: Write
 ///     {
 ///         w.write_all(&self.to_le_bytes())
@@ -67,28 +96,15 @@ pub trait SerializeIo {
     /// Serialize this type into the given writer.
     ///
     /// Should call `write_all`.
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write;
-}
-
-macro_rules! serialize_io_num {
-    ($($t:ty),*) => {
-        $(
-        impl SerializeIo for $t {
-            fn serialize<W>(&self, w: &mut W) -> io::Result<()>
-            where W: Write
-            {
-                w.write_all(&self.to_le_bytes())
-            }
-        })*
-    }
 }
 
 serialize_io_num!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64, usize);
 
 impl SerializeIo for char {
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write,
     {
@@ -97,7 +113,7 @@ impl SerializeIo for char {
 }
 
 impl SerializeIo for bool {
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write,
     {
@@ -106,7 +122,7 @@ impl SerializeIo for bool {
 }
 
 impl SerializeIo for String {
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write,
     {
@@ -118,7 +134,7 @@ impl<'a> SerializeIo for &'a str {
     /// Write the given string in UTF-8.
     ///
     /// If the given string does not end in a NUL `0x00` byte, one will be appended.
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, mut w: W) -> io::Result<()>
     where
         W: Write,
     {
@@ -131,15 +147,20 @@ impl<'a> SerializeIo for &'a str {
     }
 }
 
-impl<T> SerializeIo for &[T]
+impl<T, const N: usize> SerializeIo for [T; N]
 where
     T: SerializeIo,
 {
-    /// Equivalent to [ToraWrite::write_dyn].
-    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    fn serialize<W>(&self, mut w: W) -> io::Result<()>
     where
         W: Write,
     {
-        w.write_dyn(self)
+        for t in self {
+            w.writes(t)?;
+        }
+        Ok(())
     }
 }
+
+write_dyn_self_impl!(&[T]);
+write_dyn_self_impl!(Vec<T>);
