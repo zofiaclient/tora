@@ -147,6 +147,24 @@ impl<'a> SerializeIo for &'a str {
     }
 }
 
+impl<T> SerializeIo for Option<T>
+where
+    T: SerializeIo,
+{
+    /// If this Option is Some, writes true and the inner value, else false.
+    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        w.writes(&self.is_some())?;
+
+        if let Some(ref v) = self {
+            w.writes(v)?;
+        }
+        Ok(())
+    }
+}
+
 impl<T, const N: usize> SerializeIo for [T; N]
 where
     T: SerializeIo,

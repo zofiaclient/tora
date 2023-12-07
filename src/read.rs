@@ -41,6 +41,9 @@ pub trait FromReader: Sized {
 from_reader_impl!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64, usize);
 
 impl FromReader for bool {
+    /// Reads a bool from this reader.
+    ///
+    /// Returns true if the read [u8] is **not** zero.
     fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
@@ -50,6 +53,9 @@ impl FromReader for bool {
 }
 
 impl FromReader for char {
+    /// Reads a character from this reader.
+    ///
+    /// Returns [ErrorKind::InvalidData] if the read [u32] cannot be converted to a [char].
     fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
@@ -81,6 +87,22 @@ impl FromReader for String {
             }
             buf.push(b);
         }
+    }
+}
+
+impl<T> FromReader for Option<T>
+where
+    T: FromReader,
+{
+    /// Reads a bool and if true, reads and returns Some([T]).
+    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        if r.reads::<bool>()? {
+            return Ok(Some(r.reads()?));
+        }
+        Ok(None)
     }
 }
 

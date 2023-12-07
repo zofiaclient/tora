@@ -2,7 +2,7 @@
 name = "tora_derive"
 description = "The derive procedural macros for the tora crate."
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 categories = ["data-structures", "encoding", "filesystem", "network-programming", "parsing"]
 keywords = ["bytes", "network", "packet", "serde", "bson"]
@@ -18,4 +18,4 @@ tora = { path = ".." }
 [dependencies]
 syn = { version = "2.0.4", features = ["full"] }
 quote = "1.0.23"
-proc-macro2 = "1.0.52"
+proc-macro2 = "1.0.63"

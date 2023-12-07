@@ -1,3 +1,46 @@
+//! # tora
+//!
+//! Tora is a byte-based serialization and deserialization library.
+//!
+//! ```
+//! use std::io;
+//! use std::io::Cursor;
+//!
+//! use tora::{ReadEnum, ReadStruct, WriteEnum, WriteStruct};
+//! use tora::read::ToraRead;
+//! use tora::write::ToraWrite;
+//!
+//! #[derive(Debug, PartialEq, ReadEnum, WriteEnum)]
+//! #[type_variant_id(i64)]
+//! enum Packet {
+//!     Ping,
+//!     PlayerJoin(PlayerJoin),
+//!     PlayerMove {
+//!         id: u8,
+//!         destination: [f64; 3],
+//!     },
+//! }
+//!
+//! #[derive(Debug, PartialEq, ReadStruct, WriteStruct)]
+//! struct PlayerJoin {
+//!     id: u8,
+//!     username: Option<String>
+//! }
+//!
+//! fn main() -> io::Result<()> {
+//!     let se = Packet::PlayerMove { id: 5, destination: [1.1, 2.4, 3.1] };
+//!
+//!     let mut bytes = Vec::new();
+//!     bytes.writes(&se)?;
+//!
+//!     let mut cursor = Cursor::new(bytes);
+//!     let de = cursor.reads()?;
+//!
+//!     assert_eq!(se, de);
+//!     Ok(())
+//! }
+//! ```
+
 use std::fs::File;
 use std::io;
 use std::path::Path;

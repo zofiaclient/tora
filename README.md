@@ -1,11 +1,9 @@
 <div align="center">
     <h1>Tora</h1>
     <p>A lite, byte-based serialization and deserialization library</p>
+    <hr>
+    <sub>*A zero-serde solution*</sub>
 </div>
-
-*A zero-serde solution*
-
----
 
 ## Examples
 
