@@ -17,19 +17,34 @@ macro_rules! from_reader_impl {
     };
 }
 
+/// Marks a type as able to be deserialized from a reader.
+///
+/// If you are implementing this trait, make sure tora's derive macros are inapplicable to your use
+/// case.
+///
+/// # Examples
+///
 /// ```
 /// use std::io;
-/// use std::net::TcpStream;
-/// use tora::read::ToraRead;
+/// use std::io::Read;
 ///
-/// fn main() -> io::Result<()> {
-///     let mut stream = TcpStream::connect("127.0.0.1:12345")?;
+/// use tora::read::{FromReader, ToraRead};
 ///
-///     let name = stream.reads::<String>()?;
-///     let age = stream.reads::<u32>()?;
+/// struct CustomVec {
+///     extended_capacity: u32,
+///     content: Vec<u8>
+/// }
 ///
-///     println!("{name} is {age} years old.");
-///     Ok(())
+/// impl FromReader for CustomVec {
+///     fn from_reader<R>(mut r: R) -> io::Result<Self>
+///     where
+///         R: Read,
+///     {
+///         Ok(Self {
+///             extended_capacity: r.reads()?,
+///             content: r.read_dyn()?
+///         })
+///     }
 /// }
 /// ```
 pub trait FromReader: Sized {
@@ -111,6 +126,7 @@ where
     T: FromReader,
 {
     /// Equivalent to [ToraRead::read_dyn].
+    #[inline]
     fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
@@ -133,6 +149,33 @@ where
             *value = r.reads()?;
         }
         Ok(arr)
+    }
+}
+
+impl<T, E> FromReader for Result<T, E>
+where
+    T: FromReader,
+    E: FromReader,
+{
+    /// Reads a boolean and if true, tries to deserialize the [E] type, else [T].
+    fn from_reader<R>(mut r: R) -> io::Result<Result<T, E>>
+    where
+        R: Read,
+    {
+        if r.reads()? {
+            return Ok(Err(r.reads()?));
+        }
+        Ok(Ok(r.reads()?))
+    }
+}
+
+impl FromReader for () {
+    /// Immediately returns [Ok].
+    fn from_reader<R>(_r: R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        Ok(())
     }
 }
 
@@ -161,9 +204,11 @@ pub trait ToraRead {
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut stream = TcpStream::connect("127.0.0.1:12345")?;
-    ///     let message = stream.reads::<i32>()?;
     ///
-    ///     println!("{}", message);
+    ///     let date = stream.reads::<u16>()?;
+    ///     let employees: Vec<String> = stream.read_dyn()?;
+    ///
+    ///     println!("{date}, {employees:?}");
     ///     Ok(())
     /// }
     /// ```

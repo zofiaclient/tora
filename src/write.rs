@@ -104,6 +104,7 @@ pub trait SerializeIo {
 serialize_io_num!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64, usize);
 
 impl SerializeIo for char {
+    /// Serializes this char as a u32.
     fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write,
@@ -113,11 +114,22 @@ impl SerializeIo for char {
 }
 
 impl SerializeIo for bool {
+    /// Serializes this bool as a u8.
     fn serialize<W>(&self, w: W) -> io::Result<()>
     where
         W: Write,
     {
         (*self as u8).serialize(w)
+    }
+}
+
+impl SerializeIo for () {
+    /// Immediately returns [Ok].
+    fn serialize<W>(&self, _w: W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        Ok(())
     }
 }
 
@@ -162,6 +174,25 @@ where
             w.writes(v)?;
         }
         Ok(())
+    }
+}
+
+impl<T, E> SerializeIo for Result<T, E>
+where
+    T: SerializeIo,
+    E: SerializeIo,
+{
+    /// If this Result is an error, writes true and the inner error, else false and the inner value.
+    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        w.writes(&self.is_err())?;
+
+        match self {
+            Ok(v) => w.writes(v),
+            Err(v) => w.writes(v),
+        }
     }
 }
 

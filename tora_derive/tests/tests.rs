@@ -14,7 +14,7 @@ struct StructPacket {
 }
 
 #[derive(Debug, PartialEq, ReadStruct, WriteStruct)]
-struct TuplePacket(u8, String, Vec<u8>);
+struct TuplePacket(u8, Result<(), String>, Vec<u8>);
 
 #[derive(Debug, PartialEq, ReadEnum, WriteEnum)]
 #[type_variant_id(i64)]
@@ -58,7 +58,11 @@ fn struct_packet() -> io::Result<()> {
 
 #[test]
 fn tuple_packet() -> io::Result<()> {
-    assert_rw_eq(TuplePacket(5, "John".to_string(), vec![1, 2, 3]))
+    assert_rw_eq(TuplePacket(
+        5,
+        Err("Could not get username".to_string()),
+        vec![1, 2, 3],
+    ))
 }
 
 #[test]
