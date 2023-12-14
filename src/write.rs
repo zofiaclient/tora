@@ -14,36 +14,12 @@ macro_rules! serialize_io_num {
     }
 }
 
-macro_rules! write_dyn_self_impl {
-    ($t:ty) => {
-        impl<T> SerializeIo for $t
-        where
-            T: SerializeIo,
-        {
-            fn serialize<W>(&self, mut w: W) -> io::Result<()>
-            where
-                W: Write,
-            {
-                w.write_dyn(self)
-            }
-        }
-    };
-}
-
 /// An extension to the standard [Write] trait.
 pub trait ToraWrite {
     /// Serialize and write the given data.
     fn writes<S>(&mut self, s: &S) -> io::Result<()>
     where
         S: SerializeIo;
-
-    /// Write a dynamic amount of objects.
-    ///
-    /// Opposite of [ToraRead::read_dyn](crate::read::ToraRead::read_dyn).
-    fn write_dyn<T, D>(&mut self, d: D) -> io::Result<()>
-    where
-        D: AsRef<[T]>,
-        T: SerializeIo;
 }
 
 impl<W> ToraWrite for W
@@ -55,20 +31,6 @@ where
         S: SerializeIo,
     {
         s.serialize(self)
-    }
-
-    fn write_dyn<T, D>(&mut self, d: D) -> io::Result<()>
-    where
-        D: AsRef<[T]>,
-        T: SerializeIo,
-    {
-        let d = d.as_ref();
-        self.writes(&(d.len() as u32))?;
-
-        for obj in d {
-            self.writes(obj)?;
-        }
-        Ok(())
     }
 }
 
@@ -211,5 +173,23 @@ where
     }
 }
 
-write_dyn_self_impl!(&[T]);
-write_dyn_self_impl!(Vec<T>);
+macro_rules! dyn_impl {
+    ($t: ty) => {
+        #[cfg(feature = "dyn_impl")]
+        impl<T> SerializeIo for $t
+        where T: SerializeIo
+        {
+            fn serialize<W>(&self, mut w: W) -> io::Result<()> where W: Write {
+                w.writes(&(self.len() as u32))?;
+
+                for obj in self.iter() {
+                    w.writes(obj)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+dyn_impl!(&[T]);
+dyn_impl!(Vec<T>);

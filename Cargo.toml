@@ -4,7 +4,7 @@ license-file = "LICENSE"
 description = "A lite, byte-based serialization and deserialization library."
 repository = "https://github.com/imajindevon/tora"
 readme = "README.md"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 categories = ["data-structures", "encoding", "filesystem", "network-programming", "parsing"]
 keywords = ["bytes", "network", "packet", "serde", "bson"]
@@ -15,7 +15,8 @@ keywords = ["bytes", "network", "packet", "serde", "bson"]
 tora_derive = { version = "0.1.3", optional = true }
 
 [features]
-read_impl = []
 derive = ["tora_derive"]
+read_impl = []
+dyn_impl = []
 
-default = ["read_impl", "tora_derive"]
+default = ["tora_derive", "read_impl", "dyn_impl"]

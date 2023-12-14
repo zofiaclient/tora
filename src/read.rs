@@ -42,7 +42,7 @@ macro_rules! from_reader_impl {
 ///     {
 ///         Ok(Self {
 ///             extended_capacity: r.reads()?,
-///             content: r.read_dyn()?
+///             content: r.reads()?
 ///         })
 ///     }
 /// }
@@ -121,17 +121,23 @@ where
     }
 }
 
+#[cfg(feature = "dyn_impl")]
 impl<T> FromReader for Vec<T>
 where
     T: FromReader,
 {
-    /// Equivalent to [ToraRead::read_dyn].
-    #[inline]
+    /// Reads a [u32], then reads N amount of [T] into a Vec and returns it.
     fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
     {
-        r.read_dyn()
+        let len = r.reads::<u32>()? as usize;
+        let mut buf = Vec::with_capacity(len);
+
+        for _ in 0..len {
+            buf.push(r.reads()?);
+        }
+        Ok(buf)
     }
 }
 
@@ -139,6 +145,7 @@ impl<T, const N: usize> FromReader for [T; N]
 where
     T: FromReader + Copy + Default,
 {
+    /// Reads and deserializes [N] amount of [T].
     fn from_reader<R>(mut r: R) -> io::Result<Self>
     where
         R: Read,
@@ -206,20 +213,13 @@ pub trait ToraRead {
     ///     let mut stream = TcpStream::connect("127.0.0.1:12345")?;
     ///
     ///     let date = stream.reads::<u16>()?;
-    ///     let employees: Vec<String> = stream.read_dyn()?;
+    ///     let employees: Vec<String> = stream.reads()?;
     ///
     ///     println!("{date}, {employees:?}");
     ///     Ok(())
     /// }
     /// ```
     fn reads<T>(&mut self) -> io::Result<T>
-    where
-        T: FromReader;
-
-    /// Read a dynamic amount of objects.
-    ///
-    /// Reads a [u32], then reads N amount of [T] into a Vec and returns it.
-    fn read_dyn<T>(&mut self) -> io::Result<Vec<T>>
     where
         T: FromReader;
 }
@@ -234,18 +234,5 @@ where
         T: FromReader,
     {
         T::from_reader(self)
-    }
-
-    fn read_dyn<T>(&mut self) -> io::Result<Vec<T>>
-    where
-        T: FromReader,
-    {
-        let len = self.reads::<u32>()? as usize;
-        let mut buf = Vec::with_capacity(len);
-
-        for _ in 0..len {
-            buf.push(self.reads()?);
-        }
-        Ok(buf)
     }
 }
