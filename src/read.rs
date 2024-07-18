@@ -5,7 +5,7 @@ macro_rules! from_reader_impl {
     ($($t:ty),*) => {
         $(
         impl FromReader for $t {
-            fn from_reader<R>(mut r: R) -> io::Result<Self>
+            fn from_reader<R>(r: &mut R) -> io::Result<Self>
             where
                 R: Read,
             {
@@ -15,6 +15,53 @@ macro_rules! from_reader_impl {
         }
         )*
     };
+}
+
+/// A reader that reads and discards 
+#[derive(Default)]
+pub struct PaddedReader {
+    padding: usize,
+}
+
+impl PaddedReader {
+    /// Reads and discards the amount of padding, then reads [T], and applies the new padding to
+    /// future reads.
+    pub fn reads_then_set_padding<T, R>(&mut self, r: &mut R, new_padding: usize) -> io::Result<T>
+    where
+        T: FromReader,
+        R: Read,
+    {
+        let data = self.reads(r)?;
+        self.padding = new_padding;
+        Ok(data)
+    }
+
+    /// Reads and discards the amount of padding, then reads [T].
+    pub fn reads<T, R>(&self, r: &mut R) -> io::Result<T>
+    where
+        T: FromReader,
+        R: Read,
+    {
+        let mut temp = vec![0; self.padding];
+        r.read_exact(&mut temp)?;
+        r.reads()
+    }
+
+    /// Constructs a PaddedReader with the given initial padding.
+    pub fn set_padding(&mut self, padding: usize) -> &mut Self {
+        self.padding = padding;
+        self
+    }
+
+    /// Constructs a PaddedReader with the given initial padding.
+    pub const fn with_padding(padding: usize) -> Self {
+        Self { padding }
+    }
+
+    /// Returns the current amount of padding this reader uses.
+    pub const fn padding(&self) -> usize {
+        self.padding
+    }
 }
 
 /// Marks a type as able to be deserialized from a reader.
@@ -36,7 +83,7 @@ macro_rules! from_reader_impl {
 /// }
 ///
 /// impl FromReader for CustomVec {
-///     fn from_reader<R>(mut r: R) -> io::Result<Self>
+///     fn from_reader<R>(r: &mut  R) -> io::Result<Self>
 ///     where
 ///         R: Read,
 ///     {
@@ -48,7 +95,7 @@ macro_rules! from_reader_impl {
 /// }
 /// ```
 pub trait FromReader: Sized {
-    fn from_reader<R>(r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read;
 }
@@ -59,7 +106,7 @@ impl FromReader for bool {
     /// Reads a bool from this reader.
     ///
     /// Returns true if the read [u8] is **not** zero.
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -71,7 +118,7 @@ impl FromReader for char {
     /// Reads a character from this reader.
     ///
     /// Returns [ErrorKind::InvalidData] if the read [u32] cannot be converted to a [char].
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -88,7 +135,7 @@ impl FromReader for String {
     /// Reads until a NUL `0x00` byte is encountered. Does not include the terminating byte.
     ///
     /// Returns [ErrorKind::InvalidData] if the received message is not valid UTF-8.
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -110,7 +157,7 @@ where
     T: FromReader,
 {
     /// Reads a bool and if true, reads and returns Some([T]).
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -127,7 +174,7 @@ where
     T: FromReader,
 {
     /// Reads a [u32], then reads N amount of [T] into a Vec and returns it.
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -146,7 +193,7 @@ where
     T: FromReader + Copy + Default,
 {
     /// Reads and deserializes [N] amount of [T].
-    fn from_reader<R>(mut r: R) -> io::Result<Self>
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
@@ -165,7 +212,7 @@ where
     E: FromReader,
 {
     /// Reads a boolean and if true, tries to deserialize the [E] type, else [T].
-    fn from_reader<R>(mut r: R) -> io::Result<Result<T, E>>
+    fn from_reader<R>(r: &mut R) -> io::Result<Result<T, E>>
     where
         R: Read,
     {
@@ -177,12 +224,41 @@ where
 }
 
 impl FromReader for () {
-    /// Immediately returns [Ok].
-    fn from_reader<R>(_r: R) -> io::Result<Self>
+    /// Immediately returns [Ok] of unit value.
+    fn from_reader<R>(_r: &mut R) -> io::Result<Self>
     where
         R: Read,
     {
         Ok(())
+    }
+}
+
+impl<T, Z> FromReader for (T, Z)
+where
+    T: FromReader,
+    Z: FromReader,
+{
+    /// Reads a tuple of [T] and [Z], respectively.
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        Ok((r.reads()?, r.reads()?))
+    }
+}
+
+impl<T, Z, H> FromReader for (T, Z, H)
+where
+    T: FromReader,
+    Z: FromReader,
+    H: FromReader,
+{
+    /// Reads a tuple of [T], [Z], and [H], respectively.
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        Ok((r.reads()?, r.reads()?, r.reads()?))
     }
 }
 

@@ -24,6 +24,7 @@ enum EnumPacket {
     PlayerMove {
         player_id: u8,
         destination: [f64; 3],
+        feet_position: (f64, f64, f64),
     },
 }
 
@@ -70,6 +71,7 @@ fn enum_packet() -> io::Result<()> {
     assert_rw_eq(EnumPacket::PlayerMove {
         player_id: 5,
         destination: [1.4, 3.1, 9.0],
+        feet_position: (1.4, 3.1, 7.0),
     })?;
     assert_rw_eq(EnumPacket::PlayerJoin(PlayerJoin {
         id: 1,

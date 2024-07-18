@@ -5,7 +5,7 @@ macro_rules! serialize_io_num {
     ($($t:ty),*) => {
         $(
         impl SerializeIo for $t {
-            fn serialize<W>(&self, mut w: W) -> io::Result<()>
+            fn serialize<W>(&self, w: &mut W) -> io::Result<()>
             where W: Write
             {
                 w.write_all(&self.to_le_bytes())
@@ -41,13 +41,13 @@ where
 /// use std::io::Write;
 ///
 /// pub trait SerializeIo {
-///     fn serialize<W>(&self, w: W) -> io::Result<()>
+///     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
 ///     where
 ///         W: Write;
 /// }
 ///
 /// impl SerializeIo for i32 {
-///     fn serialize<W>(&self, mut w: W) -> io::Result<()>
+///     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
 ///     where W: Write
 ///     {
 ///         w.write_all(&self.to_le_bytes())
@@ -57,8 +57,8 @@ where
 pub trait SerializeIo {
     /// Serialize this type into the given writer.
     ///
-    /// Should call `write_all`.
-    fn serialize<W>(&self, w: W) -> io::Result<()>
+    /// Implementations should call `write_all`.
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write;
 }
@@ -67,7 +67,7 @@ serialize_io_num!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64, us
 
 impl SerializeIo for char {
     /// Serializes this char as a u32.
-    fn serialize<W>(&self, w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -77,7 +77,7 @@ impl SerializeIo for char {
 
 impl SerializeIo for bool {
     /// Serializes this bool as a u8.
-    fn serialize<W>(&self, w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -86,8 +86,8 @@ impl SerializeIo for bool {
 }
 
 impl SerializeIo for () {
-    /// Immediately returns [Ok].
-    fn serialize<W>(&self, _w: W) -> io::Result<()>
+    /// Immediately returns [Ok] of unit value.
+    fn serialize<W>(&self, _w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -95,8 +95,40 @@ impl SerializeIo for () {
     }
 }
 
+impl<T, Z> SerializeIo for (T, Z)
+where
+    T: SerializeIo,
+    Z: SerializeIo,
+{
+    /// Writes a tuple of [T] and [Z], respectively.
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        w.writes(&self.0)?;
+        w.writes(&self.1)
+    }
+}
+
+impl<T, Z, H> SerializeIo for (T, Z, H)
+where
+    T: SerializeIo,
+    Z: SerializeIo,
+    H: SerializeIo,
+{
+    /// Writes a tuple of [T], [Z], and [H], respectively.
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        w.writes(&self.0)?;
+        w.writes(&self.1)?;
+        w.writes(&self.2)
+    }
+}
+
 impl SerializeIo for String {
-    fn serialize<W>(&self, w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -108,7 +140,7 @@ impl<'a> SerializeIo for &'a str {
     /// Write the given string in UTF-8.
     ///
     /// If the given string does not end in a NUL `0x00` byte, one will be appended.
-    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -126,7 +158,7 @@ where
     T: SerializeIo,
 {
     /// If this Option is Some, writes true and the inner value, else false.
-    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -145,7 +177,7 @@ where
     E: SerializeIo,
 {
     /// If this Result is an error, writes true and the inner error, else false and the inner value.
-    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -162,7 +194,7 @@ impl<T, const N: usize> SerializeIo for [T; N]
 where
     T: SerializeIo,
 {
-    fn serialize<W>(&self, mut w: W) -> io::Result<()>
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
     where
         W: Write,
     {
@@ -177,9 +209,13 @@ macro_rules! dyn_impl {
     ($t: ty) => {
         #[cfg(feature = "dyn_impl")]
         impl<T> SerializeIo for $t
-        where T: SerializeIo
+        where
+            T: SerializeIo,
         {
-            fn serialize<W>(&self, mut w: W) -> io::Result<()> where W: Write {
+            fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+            where
+                W: Write,
+            {
                 w.writes(&(self.len() as u32))?;
 
                 for obj in self.iter() {
@@ -188,7 +224,7 @@ macro_rules! dyn_impl {
                 Ok(())
             }
         }
-    }
+    };
 }
 
 dyn_impl!(&[T]);

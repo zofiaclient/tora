@@ -57,7 +57,7 @@ where
 /// }
 /// ```
 ///
-/// By default this macro assumes [u8].
+/// By default, this macro assumes [u8].
 ///
 /// In the case that the enum deriving this macro contains more than [u8::MAX] variants, the user
 /// will be required to specify this attribute manually.
@@ -89,7 +89,7 @@ where
 /// }
 ///
 /// impl FromReader for Packet {
-///     fn from_reader<R>(mut r: R) -> io::Result<Self>
+///     fn from_reader<R>(r: &mut R) -> io::Result<Self>
 ///     where R: Read
 ///     {
 ///         let id = r.reads::<u32>()?;
@@ -141,7 +141,7 @@ pub fn derive_read_enum(tokens: TokenStream) -> TokenStream {
 /// }
 ///
 /// impl FromReader for Packet {
-///     fn from_reader<R>(mut r: R) -> io::Result<Self>
+///     fn from_reader<R>(r: &mut R) -> io::Result<Self>
 ///     where R: Read
 ///     {
 ///         Ok(Self { message: r.reads()? })
@@ -195,7 +195,7 @@ pub fn derive_read_struct(tokens: TokenStream) -> TokenStream {
 /// }
 ///
 /// impl SerializeIo for Packet {
-///     fn serialize<W>(&self, mut w: W) -> io::Result<()>
+///     fn serialize<W>(&self, w: &mut W) -> io::Result<()>
 ///     where W: Write
 ///     {
 ///         w.writes(&self.message)
@@ -241,7 +241,7 @@ pub fn derive_write_struct(tokens: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// By default this macro assumes [u8].
+/// By default, this macro assumes [u8].
 ///
 /// In the case that the enum deriving this macro contains more than [u8::MAX] variants, the user
 /// will be required to specify this attribute manually.
@@ -254,6 +254,5 @@ pub fn derive_write_enum(tokens: TokenStream) -> TokenStream {
     }
 
     let ty: Type = get_list_attr_or_default("type_variant_id", parse_quote!(u8), &item.attrs);
-
     derive_impl::impl_write_enum(item.ident, ty, item.variants.into_iter()).into()
 }

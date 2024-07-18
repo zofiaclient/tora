@@ -7,7 +7,7 @@ use syn::{Fields, Type, Variant};
 fn impl_from_reader(ident: &Ident, impl_tokens: TokenStream) -> TokenStream {
     quote! {
         impl tora::read::FromReader for #ident {
-            fn from_reader<R>(mut r: R) -> std::io::Result<Self>
+            fn from_reader<R>(r: &mut R) -> std::io::Result<Self>
             where R: std::io::Read
             {
                 #impl_tokens
@@ -20,7 +20,7 @@ fn impl_from_reader(ident: &Ident, impl_tokens: TokenStream) -> TokenStream {
 fn impl_serialize_io(ident: &Ident, impl_tokens: TokenStream) -> TokenStream {
     quote! {
         impl tora::write::SerializeIo for #ident {
-            fn serialize<W>(&self, mut w: W) -> std::io::Result<()>
+            fn serialize<W>(&self, w: &mut W) -> std::io::Result<()>
             where W: std::io::Write
             {
                 #impl_tokens
@@ -31,8 +31,8 @@ fn impl_serialize_io(ident: &Ident, impl_tokens: TokenStream) -> TokenStream {
 
 fn to_reads_field(ident: Option<&Ident>) -> TokenStream {
     match ident {
-        Some(ident) => quote! { #ident: tora::read::ToraRead::reads(&mut r)? },
-        None => quote! { tora::read::ToraRead::reads(&mut r)? },
+        Some(ident) => quote! { #ident: tora::read::ToraRead::reads(r)? },
+        None => quote! { tora::read::ToraRead::reads(r)? },
     }
 }
 
@@ -69,8 +69,8 @@ fn to_write_variant(variant_id: usize, id_ty: &Type, ident: Ident, fields: Field
 
     quote! {
         Self::#ident #param_style => {
-            tora::write::ToraWrite::writes(&mut w, &(#variant_id as #id_ty))?;
-            #( tora::write::ToraWrite::writes(&mut w, #vars)?; )*
+            tora::write::ToraWrite::writes(w, &(#variant_id as #id_ty))?;
+            #( tora::write::ToraWrite::writes(w, #vars)?; )*
         }
     }
 }
@@ -81,7 +81,7 @@ where
     I: Iterator<Item = Ident>,
 {
     let construction_method =
-        quote! { Ok(Self { #( #field_idents: tora::read::ToraRead::reads(&mut r)?, )* }) };
+        quote! { Ok(Self { #( #field_idents: tora::read::ToraRead::reads(r)?, )* }) };
     impl_from_reader(&ident, construction_method)
 }
 
@@ -91,7 +91,7 @@ where
     I: Iterator<Item = Type>,
 {
     let construction_method =
-        quote! { Ok(Self( #( tora::read::ToraRead::reads::<#types>(&mut r)?, )*)) };
+        quote! { Ok(Self( #( tora::read::ToraRead::reads::<#types>(r)?, )*)) };
     impl_from_reader(&ident, construction_method)
 }
 
@@ -107,7 +107,7 @@ where
     impl_from_reader(
         &ident,
         quote! {
-            std::result::Result::Ok(match tora::read::ToraRead::reads::<#ty>(&mut r)? as usize {
+            std::result::Result::Ok(match tora::read::ToraRead::reads::<#ty>(r)? as usize {
                 #( #variants, )*
                 _ => return std::result::Result::Err(
                     std::io::Error::new(std::io::ErrorKind::InvalidInput,
@@ -126,7 +126,7 @@ where
     impl_serialize_io(
         &ident,
         quote! {
-            #( tora::write::ToraWrite::writes(&mut w, &self.#fields)?; )*
+            #( tora::write::ToraWrite::writes(w, &self.#fields)?; )*
             std::result::Result::Ok(())
         },
     )
