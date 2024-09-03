@@ -262,6 +262,17 @@ where
     }
 }
 
+impl<T> FromReader for Box<T>
+where T: FromReader
+{
+    fn from_reader<R>(r: &mut R) -> io::Result<Self>
+    where
+        R: Read,
+    {
+        Ok(Box::new(r.reads()?))
+    }
+}
+
 /// An extension upon the standard [Read] implementation.
 ///
 /// ```

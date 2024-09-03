@@ -2,7 +2,7 @@
 name = "tora_derive"
 description = "The derive procedural macros for the tora crate."
 license = "MIT"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 categories = ["data-structures", "encoding", "filesystem", "network-programming", "parsing"]
 keywords = ["bytes", "network", "packet", "serde", "bson"]

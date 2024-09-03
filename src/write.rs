@@ -205,6 +205,17 @@ where
     }
 }
 
+impl<T> SerializeIo for Box<T>
+where T: SerializeIo
+{
+    fn serialize<W>(&self, w: &mut W) -> io::Result<()>
+    where
+        W: Write,
+    {
+        w.writes(&**self)
+    }
+}
+
 macro_rules! dyn_impl {
     ($t: ty) => {
         #[cfg(feature = "dyn_impl")]

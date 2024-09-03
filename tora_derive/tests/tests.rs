@@ -78,3 +78,8 @@ fn enum_packet() -> io::Result<()> {
         name: Some("Joseph".to_string()),
     }))
 }
+
+#[test]
+fn boxes() -> io::Result<()> {
+    assert_rw_eq(Box::new(EnumPacket::Ping))
+}
